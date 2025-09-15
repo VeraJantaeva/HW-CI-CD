@@ -1,0 +1,25 @@
+name: CI/CD action
+
+on:
+    push:
+        branches: [main]
+
+job:
+    testing:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Проверить изменения
+              uses: actions/checkout@v2
+
+            - name: Установка Python
+              uses: actions/setup-python@v5
+              whith: 
+                  python-version: 3.12
+            
+            - name: установка зависимостей
+              run: pip installl -r requirements.txt
+
+            - name: Линтер
+              run: flake8 stocks_ptoducts
+              
+              
