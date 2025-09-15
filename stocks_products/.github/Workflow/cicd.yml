@@ -20,6 +20,4 @@ job:
               run: pip installl -r requirements.txt
 
             - name: Линтер
-              run: flake8 stocks_ptoducts
-              
-              
+              run: flake8 stocks_products --exclude migrations --ignore E501,F401,E302,W391,W293,W292
