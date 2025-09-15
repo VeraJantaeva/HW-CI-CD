@@ -1,23 +1,69 @@
-name: CI/CD action
+name: Testing and deploying
 
 on:
-    push:
-        branches: [main]
+  push:
+    branches: [main]
 
 jobs:
-    testing:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Проверить изменения
-              uses: actions/checkout@v2
+  testing:
+    runs-on: ubuntu-24.04
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      DEBUG: ${{ secrets.DEBUG }}
+      ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+      DB_ENGINE: ${{ secrets.DB_ENGINE }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+    services:
+      postgresql_main:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-            - name: Установка Python
-              uses: actions/setup-python@v5
-              with: 
-                  python-version: 3.12
-            
-            - name: установка зависимостей
-              run: pip install -r requirements.txt
+    steps:
+      - name: Проверка на наличие изменений
+        uses: actions/checkout@v4
 
-            - name: Линтер
-              run: flake8 stocks_products --exclude migrations --ignore E501,F401,E302,W391,W293,W292
+      - name: Установка Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Установка зависимостей
+        run: pip install -r requirements.txt
+
+      - name: Линтинг
+        run: flake8 logistic/ --exclude=logistic/migrations/
+
+      - name: Тесты
+        run: pytest
+        env:
+          SECRET_KEY: ${{ env.SECRET_KEY }}
+          DEBUG: ${{ env.DEBUG }}
+          ALLOWED_HOSTS: ${{ env.ALLOWED_HOSTS }}
+          DB_ENGINE: ${{ env.DB_ENGINE }}
+          DB_NAME: ${{ env.DB_NAME }}
+          DB_USER: ${{ env.DB_USER }}
+          DB_PASSWORD: ${{ env.DB_PASSWORD }}
+          DB_HOST: ${{ env.DB_HOST }}
+          DB_PORT: ${{ env.DB_PORT }}
+
+      - name: Деплой
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: expect /home/sergey/CI-CD/deploy.exp
